@@ -141,8 +141,9 @@ def initial_guess_trajectory(x0, M, T=1.0):
     """
     A simple initial guess: linear interpolation from x0 to 0
     """
-    ts = jnp.linspace(0.0, T, M + 1)
-    X = (1.0 - ts[:, None, None]) * x0[None, :, :]
+    # ts = jnp.linspace(0.0, T, M + 1)
+    # X = (1.0 - ts[:, None, None]) * x0[None, :, :]
+    X = jnp.broadcast_to(x0, (M + 1, *x0.shape))
     return X
 
 
@@ -172,7 +173,7 @@ def one_fbs_iteration(X_old, x0, dt, kernel, thin_fn, rng_key):
     for n in range(M):
         X_new = X_new.at[n + 1].set(X_new[n] - dt * P[n])
 
-    return X_new
+    return X_new, P
 
 
 def main(args):
@@ -213,17 +214,17 @@ def main(args):
         raise ValueError(f'Unknown thinning method: {args.thinning}')
     # Keep some snapshots for animation (store on CPU as numpy)
     loading_freq = 10
-    history = [jnp.array(X[:, :, :2])]
+    x_history = [jnp.array(X)]
+    p_history = [jnp.array(jnp.zeros_like(X))]
 
     for k in tqdm(range(args.step_num)):
         rng_key, _ = jax.random.split(rng_key)
-        X_new = one_fbs_iteration(X, x0, dt, kernel, thin_fn, rng_key)
+        X_new, P_new = one_fbs_iteration(X, x0, dt, kernel, thin_fn, rng_key)
         X = (1.0 - args.relax) * X + args.relax * X_new
+        x_history.append(np.array(X))
+        p_history.append(np.array(P_new))
 
-        if (k + 1) % max(1, args.step_num // loading_freq) == 0:
-            history.append(np.array(X[:, :, :2]))
-
-    eval_mfg(args, ts, X, kernel, history)
+    eval_mfg(args, ts, X, kernel, x_history, p_history)
     return 0
 
 

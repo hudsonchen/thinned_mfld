@@ -227,36 +227,38 @@ def eval_mmd_flow(args, sim, xT, data, mmd_path, thin_original_mse_path, time_pa
     return 
 
 
-def eval_mfg(args, ts, X, kernel, history):
+def eval_mfg(args, ts, X, kernel, x_history, p_history):
     M, N = X.shape[0] - 1, X.shape[1]
-    energy_history = [0.0]
-    interaction_cost_history = [0.0]
-    terminal_cost_history = [0.0]
-    total_cost_history = [0.0]
-
-
-    for x in history:
-        energy = jnp.sum(jnp.square(X)) / args.particle_num
+    energy_history = []
+    interaction_cost_history = []
+    terminal_cost_history = []
+    total_cost_history = []
+    for x, p in tqdm(zip(x_history, p_history)):
+        energy = jnp.sum(jnp.square(p)) / args.particle_num
         interaction = 0.0
         for t in range(M + 1):
             temp = kernel.make_distance_matrix(x, x).mean()
             interaction += temp
         interaction /= (M + 1)
-        terminal = 10 * jnp.sum(jnp.square(X[-1]), axis=1).mean()
+        terminal = 10 * jnp.sum(jnp.square(x[-1]), axis=1).mean()
         energy_history.append(energy)
         interaction_cost_history.append(interaction)
         terminal_cost_history.append(terminal)
         total_cost_history.append(energy + interaction + terminal)
 
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-    axes[0, 0].plot(energy_history, label='Energy Cost')
+    axes[0, 0].plot(energy_history)
     axes[0, 0].set_yscale('log')
-    axes[0, 1].plot(interaction_cost_history, label='Interaction Cost')
+    axes[0, 0].set_title('Energy Cost')
+    axes[0, 1].plot(interaction_cost_history)
     axes[0, 1].set_yscale('log')
-    axes[1, 0].plot(terminal_cost_history, label='Terminal Cost')
+    axes[0, 1].set_title('Interaction Cost')
+    axes[1, 0].plot(terminal_cost_history)
     axes[1, 0].set_yscale('log')
-    axes[1, 1].plot(total_cost_history, label='Total Cost')
+    axes[1, 0].set_title('Terminal Cost')
+    axes[1, 1].plot(total_cost_history)
     axes[1, 1].set_yscale('log')
+    axes[1, 1].set_title('Total Cost')
     plt.savefig(f'{args.save_path}/mfg_costs.png')
     plt.close()
 
@@ -265,7 +267,7 @@ def eval_mfg(args, ts, X, kernel, history):
     jnp.save(f'{args.save_path}/mfg_terminal_cost_history.npy', jnp.array(terminal_cost_history))
     jnp.save(f'{args.save_path}/mfg_total_cost_history.npy', jnp.array(total_cost_history))
     
-    save_animation_mfg(args, ts, X, title=f"MFG particles", interval=35)
+    save_animation_mfg(args, ts, X[:, :, :2], title=f"MFG particles", interval=35)
 
     return 
 
