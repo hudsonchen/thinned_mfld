@@ -146,9 +146,11 @@ class MFLD_nn(MFLDBase):
             thinned_x = self.thin_fn(x, key)
             N, d = x.shape
             B = jnp.sqrt(N).astype(int)
+            key, _ = random.split(key)
+            perm = jax.random.permutation(key, N)
+            x = x[perm]
             x_batch = x.reshape((B, B, d))  # (num_batches=B, batch_size=B, d)
             key, subkey = random.split(key)
-            keys = random.split(subkey, B)
 
             def vf_one_batch(xb):
                 return self.vector_field(xb, xb, batch)  # -> (B, d)
@@ -162,13 +164,7 @@ class MFLD_nn(MFLDBase):
 
     def simulate(self, x0: Optional[Array] = None) -> Array:
         key = random.PRNGKey(self.cfg.seed)
-        if x0 is None:
-            key, sub = random.split(key)
-            x0 = 0.5 * random.normal(sub, (self.cfg.N, self.problem.particle_d)) * 0.1
-            # W1_0, b1_0, W2_0 = initialize(key, d_in=self.problem.input_d, d_hidden=self.cfg.N, 
-                                        #   d_out=self.problem.output_d)
-            # x0 = jnp.concatenate([W1_0.T, b1_0[:, None], W2_0], axis=1)  # (N, d)
-
+        
         x = x0
         path = []
         mmd_path = []

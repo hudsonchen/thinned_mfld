@@ -192,9 +192,9 @@ def load_student_teacher(batch_size, total_size, q1_nn_apply, d, M, standardize_
     Z = jax.random.normal(key_z, shape=(total_size, d_input), dtype=jnp.float32)
 
     # Sample teacher parameters
-    # W1 = 0.8 * jax.random.normal(key_params, shape=(d_input, M), dtype=jnp.float32) / jnp.sqrt(d_input)
+    # W1 = 0.8 * jax.random.normal(key_params, shape=(d_input, M), dtype=jnp.float32)
     # b1 = jnp.zeros((M,), dtype=jnp.float32)
-    # W2 = 0.8 * jax.random.normal(jax.random.fold_in(key_params, 1), shape=(M,), dtype=jnp.float32) / jnp.sqrt(M)
+    # W2 = 0.8 * jax.random.normal(jax.random.fold_in(key_params, 1), shape=(M,), dtype=jnp.float32)
     # teacher_params = jnp.concatenate([W1.T, b1[:, None], W2[:, None]], axis=1)
 
     teacher_params = sample_teacher_params_multimodal_per_neuron(
@@ -263,6 +263,7 @@ def load_student_teacher(batch_size, total_size, q1_nn_apply, d, M, standardize_
         "num_batches_te": num_batches_te,
         "d_in": d_input,
         "noise_std": 0.3,
+        "teacher_params": teacher_params,
     }
 
     return out

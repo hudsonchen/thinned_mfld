@@ -1,3 +1,5 @@
+import random
+from re import sub
 from utils.configs import CFG
 from utils.problems import *
 from mfld import MFLD_nn, MFLD_vlm, MFLD_mmd_flow
@@ -51,7 +53,7 @@ def get_config():
     parser.add_argument('--save_path', type=str, default='./results/')
     parser.add_argument('--thinning', type=str, default='kt')
     parser.add_argument('--zeta', type=float, default=1.0)
-    parser.add_argument('--d', type=int, default=10)
+    parser.add_argument('--d', type=int, default=20)
     args = parser.parse_args()  
     return args
 
@@ -76,10 +78,10 @@ def main(args):
         def q1_nn(z, x):
             d_hidden = z.shape[-1]
             W1, b1, W2 = x[:d_hidden], x[d_hidden+1], x[d_hidden+1:]
-            h = jnp.tanh(z @ W1 + b1)
+            h = jax.nn.relu(z @ W1 + b1)
             return jnp.dot(W2, h)
 
-        data = load_student_teacher(batch_size=64, total_size=1024, q1_nn_apply=q1_nn, d=args.d, M=100,
+        data = load_student_teacher(batch_size=64, total_size=1024 * 32, q1_nn_apply=q1_nn, d=args.d, M=100,
                                     standardize_Z=True, standardize_y=False)
         
         @jax.jit
@@ -184,7 +186,8 @@ def main(args):
         cfg = CFG(N=args.particle_num, steps=args.step_num, step_size=args.step_size, sigma=args.noise_scale, kernel=args.kernel,
               zeta=args.zeta, g=args.g, seed=args.seed, bandwidth=args.bandwidth, return_path=True)
         sim = MFLD_nn(problem=problem_nn, save_freq=data["num_batches_tr"], thinning=args.thinning, cfg=cfg, args=args)
-        X0 = None
+        rng_key, sub = jax.random.split(rng_key)
+        X0 = 0.5 * jax.random.normal(sub, (cfg.N, problem_nn.particle_d)) * 0.1
     elif args.dataset == 'vlm':
         # This is post-Bayesian inference
         cfg = CFG(N=args.particle_num, steps=args.step_num, step_size=args.step_size, sigma=args.noise_scale, kernel=args.kernel,

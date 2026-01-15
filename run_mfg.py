@@ -216,17 +216,19 @@ def main(args):
     loading_freq = 2
     x_history = [jnp.array(X)]
     p_history = [jnp.array(jnp.zeros_like(X))]
-
+    time_history = [0.0]
     for k in tqdm(range(args.step_num)):
+        time_now = time.time()
         rng_key, _ = jax.random.split(rng_key)
         X_new, P_new = one_fbs_iteration(X, x0, dt, kernel, thin_fn, rng_key)
         X = (1.0 - args.relax) * X + args.relax * X_new
         if k % loading_freq == 0:
             x_history.append(np.array(X))
             p_history.append(np.array(P_new))
+            time_history.append(time.time() - time_now)
 
     kernel = jit(gaussian_kernel(args.bandwidth).make_distance_matrix) # for evaluation only
-    eval_mfg(args, ts, X, kernel, x_history, p_history)
+    eval_mfg(args, ts, X, kernel, x_history, p_history, time_history)
     return 0
 
 

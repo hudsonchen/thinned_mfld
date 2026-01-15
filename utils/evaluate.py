@@ -31,8 +31,8 @@ def eval_nn_regression(args, sim, xT, data, loss, mmd_path, thin_original_mse_pa
     plt.plot(test_losses, label='Test Loss')
     plt.xlabel('Training Step')
     plt.ylabel('Loss')
-    plt.savefig(f'{args.save_path}/nn_regression_loss.png')
     plt.legend()
+    plt.savefig(f'{args.save_path}/nn_regression_loss.png')
     plt.close()
     return
 
@@ -238,7 +238,7 @@ def eval_mmd_flow(args, sim, xT, data, mmd_path, thin_original_mse_path, time_pa
     return 
 
 
-def eval_mfg(args, ts, X, kernel, x_history, p_history):
+def eval_mfg(args, ts, X, kernel, x_history, p_history, time_history):
     M, N = X.shape[0] - 1, X.shape[1]
     energy_history = []
     interaction_cost_history = []
@@ -278,12 +278,9 @@ def eval_mfg(args, ts, X, kernel, x_history, p_history):
     jnp.save(f'{args.save_path}/mfg_interaction_cost_history.npy', jnp.array(interaction_cost_history))
     jnp.save(f'{args.save_path}/mfg_terminal_cost_history.npy', jnp.array(terminal_cost_history))
     jnp.save(f'{args.save_path}/mfg_total_cost_history.npy', jnp.array(total_cost_history))
-    
+    jnp.save(f'{args.save_path}/mfg_time_history.npy', jnp.array(time_history))
     save_animation_mfg(args, ts, X[:, :, :2], title=f"MFG particles", interval=35)
-
     return 
-
-
 
 
 import numpy as np
