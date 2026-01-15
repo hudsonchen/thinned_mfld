@@ -226,6 +226,52 @@ def eval_mmd_flow(args, sim, xT, data, mmd_path, thin_original_mse_path, time_pa
     save_animation_2d(xT, sim.problem.distribution, save_path=args.save_path)
     return 
 
+
+def eval_mfg(args, ts, X, kernel, history):
+    M, N = X.shape[0] - 1, X.shape[1]
+    energy_history = [0.0]
+    interaction_cost_history = [0.0]
+    terminal_cost_history = [0.0]
+    total_cost_history = [0.0]
+
+
+    for x in history:
+        energy = jnp.sum(jnp.square(X)) / args.particle_num
+        interaction = 0.0
+        for t in range(M + 1):
+            temp = kernel.make_distance_matrix(x, x).mean()
+            interaction += temp
+        interaction /= (M + 1)
+        terminal = 10 * jnp.sum(jnp.square(X[-1]), axis=1).mean()
+        energy_history.append(energy)
+        interaction_cost_history.append(interaction)
+        terminal_cost_history.append(terminal)
+        total_cost_history.append(energy + interaction + terminal)
+
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+    axes[0, 0].plot(energy_history, label='Energy Cost')
+    axes[0, 0].set_yscale('log')
+    axes[0, 1].plot(interaction_cost_history, label='Interaction Cost')
+    axes[0, 1].set_yscale('log')
+    axes[1, 0].plot(terminal_cost_history, label='Terminal Cost')
+    axes[1, 0].set_yscale('log')
+    axes[1, 1].plot(total_cost_history, label='Total Cost')
+    axes[1, 1].set_yscale('log')
+    plt.savefig(f'{args.save_path}/mfg_costs.png')
+    plt.close()
+
+    jnp.save(f'{args.save_path}/mfg_energy_history.npy', jnp.array(energy_history))
+    jnp.save(f'{args.save_path}/mfg_interaction_cost_history.npy', jnp.array(interaction_cost_history))
+    jnp.save(f'{args.save_path}/mfg_terminal_cost_history.npy', jnp.array(terminal_cost_history))
+    jnp.save(f'{args.save_path}/mfg_total_cost_history.npy', jnp.array(total_cost_history))
+    
+    save_animation_mfg(args, ts, X, title=f"MFG particles", interval=35)
+
+    return 
+
+
+
+
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
@@ -302,41 +348,41 @@ def save_animation_2d(
     return
 
 
-# def save_animation_2d(args, trajectory, kernel, distribution, rate, save_path):
-#     T = trajectory.shape[0]
-#     Y = trajectory[0, :, :]
+def save_animation_mfg(args, ts, X, title="MFG particle evolution", interval=40):
+    """
+    Animate particles in 2D.
+    - X: (M+1, N, 2)
+    - trail: how many past frames to show as faint points (0 disables)
+    """
+    Np1, N, _ = X.shape
 
-#     num_timesteps = trajectory.shape[0]
-#     num_frames = max(num_timesteps // rate, 1)
+    # Plot bounds
+    xmin = float(np.min(X[:, :, 0])) - 0.5
+    xmax = float(np.max(X[:, :, 0])) + 0.5
+    ymin = float(np.min(X[:, :, 1])) - 0.5
+    ymax = float(np.max(X[:, :, 1])) + 0.5
 
-#     def update(frame):
-#         _animate_scatter.set_offsets(trajectory[frame * rate, :, :])
-#         return (_animate_scatter,)
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.set_aspect("equal", adjustable="box")
+    ax.set_xlim(xmin, xmax)
+    ax.set_ylim(ymin, ymax)
+    ax.set_title(title)
+    ax.set_xlabel("x1")
+    ax.set_ylabel("x2")
 
-#     # create initial plot
-#     animate_fig, animate_ax = plt.subplots()
-#     animate_ax.set_xlim(-5, 5)
-#     animate_ax.set_ylim(-5, 5)
-#     x_range = (-5, 5)
-#     y_range = (-5, 5)
-#     resolution = 100
-#     x_vals = jnp.linspace(x_range[0], x_range[1], resolution)
-#     y_vals = jnp.linspace(y_range[0], y_range[1], resolution)
-#     X, Y = jnp.meshgrid(x_vals, y_vals)
-#     grid = jnp.stack([X.ravel(), Y.ravel()], axis=1)
-#     logpdf = jnp.log(distribution.pdf(grid).reshape(resolution, resolution))
-#     plt.imshow(logpdf, extent=(-5, 5, -5, 5), origin='lower')
+    # Target at origin
+    ax.scatter([0.0], [0.0], marker="x", s=80, color='red', label='Target')
+    # Initial particles
+    scat = ax.scatter(X[0, :, 0], X[0, :, 1], s=80, color='blue')
+    time_text = ax.text(0.02, 0.98, "", transform=ax.transAxes, va="top")
 
-#     _animate_scatter = animate_ax.scatter(trajectory[0, :, 1], trajectory[0, :, 0], label='source')
+    def update(frame):
+        scat.set_offsets(X[frame])
+        time_text.set_text(f"t = {ts[frame]:.3f}")
+        return (scat, time_text)
 
-#     ani = FuncAnimation(
-#         animate_fig,
-#         update,
-#         frames=num_frames,
-#         # init_func=init,
-#         blit=True,
-#         interval=50,
-#     )
-#     ani.save(f'{save_path}/animation.mp4',
-#                    writer='ffmpeg', fps=20)
-#     return    
+    anim = FuncAnimation(fig, update, frames=range(Np1), interval=interval, blit=True)
+    from matplotlib.animation import FFMpegWriter
+    writer = FFMpegWriter(fps=30, metadata=dict(artist='MFG'), bitrate=1800)
+    anim.save(f"{args.save_path}/mfg_trajectory.mp4", writer=writer)
+    return anim

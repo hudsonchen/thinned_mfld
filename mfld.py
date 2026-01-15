@@ -10,7 +10,6 @@ from jax import jit, vmap, grad, random, lax
 from utils.configs import CFG
 from utils.kernel import compute_mmd2
 from jaxtyping import Array 
-# from utils.kt import kt_compresspp
 from tqdm import tqdm
 from goodpoints import compress
 from goodpoints.jax.compress import kt_compresspp

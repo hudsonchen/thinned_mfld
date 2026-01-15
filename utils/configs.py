@@ -23,3 +23,26 @@ class CFG:
     return_path: bool = False
 
 # ----------------------- Problem spec -----------------------
+
+from dataclasses import dataclass
+
+@dataclass
+class MFC_Config:
+    # sizes
+    N: int = 256       # particles
+    d: int = 2         # state dimension
+    a_dim: int = 2     # action dimension
+
+    # time
+    T: float = 1.0
+    dt: float = 0.01
+    sigma: float = 0.3
+
+    # kernel
+    bandwidth: float = 1.0
+
+    # SGD
+    K_sgd: int = 200
+    lr: float = 1e-3
+    seed: int = 0
+    log_every: int = 20
