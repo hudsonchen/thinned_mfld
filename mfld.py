@@ -122,8 +122,6 @@ class MFLD_nn(MFLDBase):
 
     @partial(jit, static_argnums=0)
     def vector_field(self, x: Array, thinned_x: Array, data: Array) -> Array:
-        # First term: R1'(E[q1]) * ∇q1(x)
-        # s = self._vm_q1(self.data["Z"][self.counter, ...], thinned_x).sum(1) * (x.shape[0] / thinned_x.shape[0]) - self.data["y"][self.counter, ...]  # (n, )
         (Z, y) = data
         s = self._vm_q1(Z, thinned_x).mean(1)   # (n, d_out)
         coeff = self.problem.R1_prime(s, y)    # (n, d_out)

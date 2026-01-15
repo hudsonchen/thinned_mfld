@@ -1,7 +1,7 @@
 from utils.configs import CFG
 from utils.problems import *
 from mfld import MFLD_nn, MFLD_vlm, MFLD_mmd_flow
-from utils.datasets import load_boston, load_covertype
+from utils.datasets import load_student_teacher, load_covertype
 import jax.numpy as jnp
 import jax
 import time
@@ -10,7 +10,7 @@ import argparse
 import pickle
 import time
 from utils.lotka_volterra import lotka_volterra_ws, lotka_volterra_ms
-from utils.evaluate import eval_boston, eval_covertype, eval_vlm, eval_mmd_flow
+from utils.evaluate import eval_nn_classification, eval_nn_regression, eval_vlm, eval_mmd_flow
 
 # os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
 # os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.5"  # Use only 50% of GPU memory
@@ -51,6 +51,7 @@ def get_config():
     parser.add_argument('--save_path', type=str, default='./results/')
     parser.add_argument('--thinning', type=str, default='kt')
     parser.add_argument('--zeta', type=float, default=1.0)
+    parser.add_argument('--d', type=int, default=10)
     args = parser.parse_args()  
     return args
 
@@ -60,7 +61,7 @@ def create_dir(args):
     args.save_path += f"neural_network_{args.dataset}/thinning_{args.thinning}/"
     args.save_path += f"kernel_{args.kernel}__step_size_{args.step_size}__bandwidth_{args.bandwidth}__step_num_{args.step_num}"
     args.save_path += f"__g_{args.g}__particle_num_{args.particle_num}__noise_scale_{args.noise_scale}__zeta_{args.zeta}"
-    args.save_path += f"__seed_{args.seed}"
+    args.save_path += f"__d_{args.d}__seed_{args.seed}"
     os.makedirs(args.save_path, exist_ok=True)
     with open(f'{args.save_path}/configs', 'wb') as handle:
         pickle.dump(vars(args), handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -68,7 +69,7 @@ def create_dir(args):
 
 def main(args):
     rng_key = jax.random.PRNGKey(args.seed)
-    if args.dataset == 'boston':
+    if args.dataset == 'student_teacher':
         def R1_prime(hat_y, y):  # R1(s)=0.5*s^2
             return hat_y - y
 
@@ -78,8 +79,9 @@ def main(args):
             h = jnp.tanh(z @ W1 + b1)
             return jnp.dot(W2, h)
 
-        data = load_boston(batch_size=64, standardize_X=True, standardize_y=False)
-
+        data = load_student_teacher(batch_size=64, total_size=1024, q1_nn_apply=q1_nn, d=args.d, M=100,
+                                    standardize_Z=True, standardize_y=False)
+        
         @jax.jit
         def loss(Z, y, params):
             """Compute MSE for a given parameter vector `params`."""
@@ -99,13 +101,12 @@ def main(args):
             R1_prime=R1_prime,
             q1=q1_nn,
             q2=None,
-            gradx_q2=None,
             data=data
         )
 
     elif args.dataset == 'covertype':
 
-        def R1_prime(hat_y, y):  # R1(s)=0.5*s^2
+        def R1_prime(hat_y, y):
             return - y / (hat_y + 1e-8)
 
         def q1_nn(z, x):
@@ -178,7 +179,7 @@ def main(args):
     else:
         raise ValueError(f"Unknown dataset: {args.dataset}")
     
-    if args.dataset in ['boston', 'covertype']:
+    if args.dataset in ['boston', 'covertype', 'student_teacher']:
         # This is mean-field neural network
         cfg = CFG(N=args.particle_num, steps=args.step_num, step_size=args.step_size, sigma=args.noise_scale, kernel=args.kernel,
               zeta=args.zeta, g=args.g, seed=args.seed, bandwidth=args.bandwidth, return_path=True)
@@ -201,15 +202,14 @@ def main(args):
         X0 = 2.0 * jax.random.normal(rng_key, (args.particle_num, problem_mmd_flow.particle_d))
     xT, mmd_path, thin_original_mse_path, time_path = sim.simulate(x0=X0)
 
-    if args.dataset == 'covertype':
-        eval_covertype(args, sim, xT, data, loss, mmd_path, thin_original_mse_path, time_path)
-
+    if args.dataset in ['covertype']:
+        eval_nn_classification(args, sim, xT, data, loss, mmd_path, thin_original_mse_path, time_path)
+    elif args.dataset in ['student_teacher']:
+        eval_nn_regression(args, sim, xT, data, loss, mmd_path, thin_original_mse_path, time_path)
     elif args.dataset == 'vlm':
         eval_vlm(args, sim, xT, data, init, x_ground_truth, 
                  lotka_volterra_ws, lotka_volterra_ms, 
                  mmd_path, thin_original_mse_path, time_path)
-        # jnp.save(f'{args.save_path}/time_path.npy', time_path)
-
     elif args.dataset == 'mmd_flow':
         eval_mmd_flow(args, sim, xT, None, mmd_path, thin_original_mse_path, time_path)
     else:

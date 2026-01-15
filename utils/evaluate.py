@@ -4,7 +4,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from utils.kernel import *
 
-def eval_boston(sim, xT, data, loss):
+def eval_nn_regression(args, sim, xT, data, loss, mmd_path, thin_original_mse_path, time_path):
     train_losses = []
     test_losses = []
     for p in tqdm(xT):
@@ -18,16 +18,25 @@ def eval_boston(sim, xT, data, loss):
     
     train_losses = jnp.array(train_losses)
     test_losses = jnp.array(test_losses)
-    print("Final Train pred:", sim._vm_q1(data["Z"][0, ...], xT[-1]).mean(axis=0).squeeze()[:5])
-    print("Final Train label:", data["y"][0, ...][:5].squeeze())
-    print("Final Test pred:", sim._vm_q1(data["Z_test"][0, ...], xT[-1]).mean(axis=0).squeeze()[:5])
-    print("Final Test label:", data["y_test"][0, ...][:5].squeeze())
-    print("Final Train Loss:", train_losses[-1])
-    print("Final Test Loss:", test_losses[-1])
-    return train_losses, test_losses
 
+    jnp.save(f'{args.save_path}/trajectory.npy', xT)
+    jnp.save(f'{args.save_path}/mmd_path.npy', mmd_path)
+    jnp.save(f'{args.save_path}/thin_original_mse_path.npy', thin_original_mse_path)
+    jnp.save(f'{args.save_path}/train_losses.npy', train_losses)
+    jnp.save(f'{args.save_path}/test_losses.npy', test_losses)
+    jnp.save(f'{args.save_path}/time_path.npy', time_path)
 
-def eval_covertype(args, sim, xT, data, loss, mmd_path, thin_original_mse_path,
+    axs = plt.subplots(1, 1, figsize=(8, 6))
+    plt.plot(train_losses, label='Train Loss')
+    plt.plot(test_losses, label='Test Loss')
+    plt.xlabel('Training Step')
+    plt.ylabel('Loss')
+    plt.savefig(f'{args.save_path}/nn_regression_loss.png')
+    plt.legend()
+    plt.close()
+    return
+
+def eval_nn_classification(args, sim, xT, data, loss, mmd_path, thin_original_mse_path,
                    time_path):
     train_losses, train_accs = [], []
     test_losses, test_accs = [], []
@@ -66,6 +75,8 @@ def eval_covertype(args, sim, xT, data, loss, mmd_path, thin_original_mse_path,
     jnp.save(f'{args.save_path}/train_losses.npy', train_losses)
     jnp.save(f'{args.save_path}/test_losses.npy', test_losses)
     jnp.save(f'{args.save_path}/time_path.npy', time_path)
+    return
+
 
 def eval_vlm(args, sim, xT, data, init, x_ground_truth, 
              lotka_volterra_ws, lotka_volterra_ms, 
@@ -233,11 +244,12 @@ def eval_mfg(args, ts, X, kernel, x_history, p_history):
     interaction_cost_history = []
     terminal_cost_history = []
     total_cost_history = []
+
     for x, p in tqdm(zip(x_history, p_history)):
         energy = jnp.sum(jnp.square(p)) / args.particle_num
         interaction = 0.0
         for t in range(M + 1):
-            temp = kernel.make_distance_matrix(x, x).mean()
+            temp = kernel(x, x).mean()
             interaction += temp
         interaction /= (M + 1)
         terminal = 10 * jnp.sum(jnp.square(x[-1]), axis=1).mean()

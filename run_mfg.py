@@ -110,6 +110,7 @@ def sample_rho0(key, N, d=2, std=0.1):
     return x0
 
 
+@jax.jit
 def terminal_grad_psi(x):
     # psi(x)=10||x||^2 => ∇psi = 20 x
     return 20.0 * x
@@ -118,7 +119,7 @@ def terminal_grad_psi(x):
 # -------------------------
 # Kernel and mean-field force
 # -------------------------
-@partial(jit, static_argnums=(2,3))
+# @partial(jit, static_argnums=(2,3))
 def grad_f_from_particles(X_t, scale, kernel, thin_fn, rng_key):
     """
     Inputs:
@@ -188,7 +189,7 @@ def main(args):
 
     # Initialize trajectory
     X = initial_guess_trajectory(x0, M=M, T=T)
-    kernel = gaussian_kernel(args.bandwidth)
+    kernel = jax.jit(gaussian_kernel(args.bandwidth))
 
     if args.thinning == 'kt':
         def thin_fn(X, rng_key):
@@ -206,14 +207,13 @@ def main(args):
     elif args.thinning == 'random':
         def thin_fn(X, rng_key):
             N = X.shape[0]
-            sqrt_N = int(jnp.sqrt(N))
             key_thin, _ = jax.random.split(rng_key)
-            indices = jax.random.choice(key_thin, N, shape=(sqrt_N,), replace=False)
+            indices = jax.random.choice(key_thin, N, (int(jnp.sqrt(N)),), replace=False)
             return X[indices]
     else:
         raise ValueError(f'Unknown thinning method: {args.thinning}')
     # Keep some snapshots for animation (store on CPU as numpy)
-    loading_freq = 10
+    loading_freq = 2
     x_history = [jnp.array(X)]
     p_history = [jnp.array(jnp.zeros_like(X))]
 
@@ -221,9 +221,11 @@ def main(args):
         rng_key, _ = jax.random.split(rng_key)
         X_new, P_new = one_fbs_iteration(X, x0, dt, kernel, thin_fn, rng_key)
         X = (1.0 - args.relax) * X + args.relax * X_new
-        x_history.append(np.array(X))
-        p_history.append(np.array(P_new))
+        if k % loading_freq == 0:
+            x_history.append(np.array(X))
+            p_history.append(np.array(P_new))
 
+    kernel = jit(gaussian_kernel(args.bandwidth).make_distance_matrix) # for evaluation only
     eval_mfg(args, ts, X, kernel, x_history, p_history)
     return 0
 
