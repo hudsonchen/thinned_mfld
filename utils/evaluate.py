@@ -4,10 +4,10 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from utils.kernel import *
 
-def eval_nn_regression(args, sim, xT, data, loss, mmd_path, thin_original_mse_path, time_path):
+def eval_nn_regression(args, sim, X0, xT, data, loss, mmd_path, thin_original_mse_path, time_path):
     train_losses = []
     test_losses = []
-    for p in tqdm(xT):
+    for p in tqdm(jnp.vstack([X0[None, :], xT])):
         tr_, te_ = 0.0, 0.0
         for z_tr, y_tr in zip(data["Z"], data["y"]):
             tr_ += loss(z_tr, y_tr, p)
@@ -19,7 +19,7 @@ def eval_nn_regression(args, sim, xT, data, loss, mmd_path, thin_original_mse_pa
     train_losses = jnp.array(train_losses)
     test_losses = jnp.array(test_losses)
 
-    jnp.save(f'{args.save_path}/trajectory.npy', xT)
+    jnp.save(f'{args.save_path}/trajectory.npy', jnp.vstack([X0[None, :], xT]))
     jnp.save(f'{args.save_path}/mmd_path.npy', mmd_path)
     jnp.save(f'{args.save_path}/thin_original_mse_path.npy', thin_original_mse_path)
     jnp.save(f'{args.save_path}/train_losses.npy', train_losses)
@@ -31,6 +31,7 @@ def eval_nn_regression(args, sim, xT, data, loss, mmd_path, thin_original_mse_pa
     plt.plot(test_losses, label='Test Loss')
     plt.xlabel('Training Step')
     plt.ylabel('Loss')
+    plt.yscale('log')
     plt.legend()
     plt.savefig(f'{args.save_path}/nn_regression_loss.png')
     plt.close()

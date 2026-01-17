@@ -54,6 +54,7 @@ def get_config():
     parser.add_argument('--thinning', type=str, default='kt')
     parser.add_argument('--zeta', type=float, default=1.0)
     parser.add_argument('--d', type=int, default=20)
+    parser.add_argument('--teacher_num', type=int, default=100)
     args = parser.parse_args()  
     return args
 
@@ -63,7 +64,7 @@ def create_dir(args):
     args.save_path += f"neural_network_{args.dataset}/thinning_{args.thinning}/"
     args.save_path += f"kernel_{args.kernel}__step_size_{args.step_size}__bandwidth_{args.bandwidth}__step_num_{args.step_num}"
     args.save_path += f"__g_{args.g}__particle_num_{args.particle_num}__noise_scale_{args.noise_scale}__zeta_{args.zeta}"
-    args.save_path += f"__d_{args.d}__seed_{args.seed}"
+    args.save_path += f"__d_{args.d}__teacher_num_{args.teacher_num}__seed_{args.seed}"
     os.makedirs(args.save_path, exist_ok=True)
     with open(f'{args.save_path}/configs', 'wb') as handle:
         pickle.dump(vars(args), handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -81,7 +82,7 @@ def main(args):
             h = jax.nn.relu(z @ W1 + b1)
             return jnp.dot(W2, h)
 
-        data = load_student_teacher(batch_size=64, total_size=1024 * 32, q1_nn_apply=q1_nn, d=args.d, M=100,
+        data = load_student_teacher(batch_size=64, total_size=1024 * 32, q1_nn_apply=q1_nn, d=args.d, M=args.teacher_num,
                                     standardize_Z=True, standardize_y=False)
         
         @jax.jit
@@ -187,7 +188,7 @@ def main(args):
               zeta=args.zeta, g=args.g, seed=args.seed, bandwidth=args.bandwidth, return_path=True)
         sim = MFLD_nn(problem=problem_nn, save_freq=data["num_batches_tr"], thinning=args.thinning, cfg=cfg, args=args)
         rng_key, sub = jax.random.split(rng_key)
-        X0 = 0.5 * jax.random.normal(sub, (cfg.N, problem_nn.particle_d)) * 0.1
+        X0 = 0.05 * jax.random.normal(sub, (cfg.N, problem_nn.particle_d)) + 0.1
     elif args.dataset == 'vlm':
         # This is post-Bayesian inference
         cfg = CFG(N=args.particle_num, steps=args.step_num, step_size=args.step_size, sigma=args.noise_scale, kernel=args.kernel,
@@ -208,7 +209,7 @@ def main(args):
     if args.dataset in ['covertype']:
         eval_nn_classification(args, sim, xT, data, loss, mmd_path, thin_original_mse_path, time_path)
     elif args.dataset in ['student_teacher']:
-        eval_nn_regression(args, sim, xT, data, loss, mmd_path, thin_original_mse_path, time_path)
+        eval_nn_regression(args, sim, X0, xT, data, loss, mmd_path, thin_original_mse_path, time_path)
     elif args.dataset == 'vlm':
         eval_vlm(args, sim, xT, data, init, x_ground_truth, 
                  lotka_volterra_ws, lotka_volterra_ms, 

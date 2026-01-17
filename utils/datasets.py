@@ -190,6 +190,7 @@ def load_student_teacher(batch_size, total_size, q1_nn_apply, d, M, standardize_
     # Sample inputs
     d_input = d
     Z = jax.random.normal(key_z, shape=(total_size, d_input), dtype=jnp.float32)
+    # Z = Z / jnp.linalg.norm(Z, axis=1, keepdims=True)
 
     # Sample teacher parameters
     # W1 = 0.8 * jax.random.normal(key_params, shape=(d_input, M), dtype=jnp.float32)
@@ -201,7 +202,7 @@ def load_student_teacher(batch_size, total_size, q1_nn_apply, d, M, standardize_
         key_params,
         d_input,
         M,
-        num_modes=8,
+        num_modes=(M // 10)+1,
         mode_separation=2.0,
         within_mode_std=0.2,
         base_scale=0.8,
@@ -281,7 +282,7 @@ def sample_teacher_params_multimodal_per_neuron(
     key_centers, key_assign, key_eps = jax.random.split(key, 3)
     Drow = d_input + 2
 
-    centers = mode_separation * jax.random.normal(key_centers, (num_modes, Drow), dtype=jnp.float32) / jnp.sqrt(Drow)
+    centers = mode_separation * jax.random.normal(key_centers, (num_modes, Drow), dtype=jnp.float32)
     # assign a mode to each hidden unit
     idx = jax.random.randint(key_assign, (M,), 0, num_modes)
     mu_rows = centers[idx]  # (M, Drow)
@@ -290,7 +291,7 @@ def sample_teacher_params_multimodal_per_neuron(
     teacher_params = mu_rows + eps  # (M, d_input+2)
 
     # scale W1/W2 similarly
-    W1 = teacher_params[:, :d_input] * (base_scale / jnp.sqrt(d_input))
+    W1 = teacher_params[:, :d_input] * (base_scale)
     b1 = teacher_params[:, d_input:d_input+1]
-    W2 = teacher_params[:, d_input+1:d_input+2] * (base_scale / jnp.sqrt(M))
+    W2 = teacher_params[:, d_input+1:d_input+2] * (base_scale)
     return jnp.concatenate([W1, b1, W2], axis=1)

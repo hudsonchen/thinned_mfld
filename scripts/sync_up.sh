@@ -3,3 +3,5 @@ rsync -ruP gatsby_server:/nfs/ghome/live/jwornbard/hudson/thinned_mfld/results/n
 rsync -ruP gatsby_server:/nfs/ghome/live/jwornbard/hudson/thinned_mfld/results/neural_network_covertype/ /home/zongchen/thinned_mfld/results_server/neural_network_covertype
 
 rsync -ruP gatsby_server:/nfs/ghome/live/jwornbard/hudson/thinned_mfld/results/neural_network_mmd_flow/ /home/zongchen/thinned_mfld/results_server/neural_network_mmd_flow
+
+rsync -ruP hudson_ucl:/home/zongchen/thinned_mfld/figures/ /Users/hudsonchen/Desktop/figures
