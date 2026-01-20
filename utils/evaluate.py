@@ -235,7 +235,7 @@ def eval_mmd_flow(args, sim, xT, data, mmd_path, thin_original_mse_path, time_pa
     jnp.save(f'{args.save_path}/thin_original_mse_path.npy', thin_original_mse_path)
     jnp.save(f'{args.save_path}/mmd_values_trajectory.npy', mmd_values)
     jnp.save(f'{args.save_path}/time_path.npy', time_path)
-    save_animation_2d(xT, sim.problem.distribution, save_path=args.save_path)
+    # save_animation_2d(xT, sim.problem.distribution, save_path=args.save_path)
     return 
 
 
@@ -280,7 +280,7 @@ def eval_mfg(args, ts, X, kernel, x_history, p_history, time_history):
     jnp.save(f'{args.save_path}/mfg_terminal_cost_history.npy', jnp.array(terminal_cost_history))
     jnp.save(f'{args.save_path}/mfg_total_cost_history.npy', jnp.array(total_cost_history))
     jnp.save(f'{args.save_path}/mfg_time_history.npy', jnp.array(time_history))
-    save_animation_mfg(args, ts, X[:, :, :2], title=f"MFG particles", interval=35)
+    # save_animation_mfg(args, ts, X[:, :, :2], title=f"MFG particles", interval=35)
     return 
 
 
