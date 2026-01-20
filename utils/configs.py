@@ -3,11 +3,6 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Callable, Optional
 
-import jax
-import jax.numpy as jnp
-from jax import jit, vmap, grad, random, lax
-from jaxtyping import Array 
-
 @dataclass
 class CFG:
     N: int = 2048
@@ -21,4 +16,5 @@ class CFG:
     bandwidth: float = 1.0  # for Gaussian kernel
     # Return full trajectory if True (memory heavy): (steps+1, N, d)
     return_path: bool = False
+    kt_function: str = "compresspp_kt"
 
