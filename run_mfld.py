@@ -228,11 +228,17 @@ if __name__ == "__main__":
     jax.config.update("jax_enable_x64", True)  # optional for stability
     args = get_config()
     args = create_dir(args)
+    new_save_path = args.save_path + '__complete'
+    # Early exit if job already completed
+    if os.path.exists(new_save_path):
+        print(f"Job already completed. Folder exists: {new_save_path}")
+        sys.exit(0)
+
     print('Program started!')
     print(vars(args))
     main(args)
     print('Program finished!')
-    new_save_path = args.save_path + '__complete'
+
     import shutil
     if os.path.exists(new_save_path):
         shutil.rmtree(new_save_path)  # Deletes existing folder
