@@ -86,11 +86,12 @@ class MFLDBase(ABC):
                     coresets = compress.compresspp_kt(x_cpu, kernel_type=self.kernel_type.encode("utf-8"), k_params=k_params, seed=seed, g=self.cfg.g)
                     return jax.device_put(x_cpu[coresets, :])
             elif cfg.kt_function == 'compress_kt':
+                print(f"Using compress_kt with skip_swap={self.cfg.skip_swap}")
                 def thin_fn(x, rng_key):
                     rng_key, _ = jax.random.split(rng_key)
                     seed = jax.random.randint(rng_key, (), 0, 2**31 - 1).item()
                     x_cpu = np.array(np.asarray(x))
-                    coresets = compress.compress_kt(x_cpu, kernel_type=self.kernel_type.encode("utf-8"), k_params=k_params, seed=seed, g=self.cfg.g, skip_swap=True)
+                    coresets = compress.compress_kt(x_cpu, kernel_type=self.kernel_type.encode("utf-8"), k_params=k_params, seed=seed, g=self.cfg.g, skip_swap=self.cfg.skip_swap)
                     return jax.device_put(x_cpu[coresets, :])
             self.thin_fn = thin_fn
         elif thinning == 'random':

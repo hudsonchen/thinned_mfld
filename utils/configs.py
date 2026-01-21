@@ -17,4 +17,5 @@ class CFG:
     # Return full trajectory if True (memory heavy): (steps+1, N, d)
     return_path: bool = False
     kt_function: str = "compresspp_kt"
+    skip_swap: bool = True
 
