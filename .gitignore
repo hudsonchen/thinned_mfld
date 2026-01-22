@@ -1,0 +1,7 @@
+/.vscode/
+/__pycache__/
+/results/
+/results_server/
+/plotting_notebooks
+/notebooks
+/utils/__pycache__/
