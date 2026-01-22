@@ -6,11 +6,7 @@ do
     do
       for zeta in 0.0
         do
-<<<<<<< HEAD
         for g in 1 2
-=======
-        for g in 0
->>>>>>> 87c6e2d5e0940a62ba829a3a411aa819bdfab16f
         do
         for kt_function in compresspp_kt
         do

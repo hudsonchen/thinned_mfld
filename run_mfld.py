@@ -242,7 +242,6 @@ if __name__ == "__main__":
     print(vars(args))
     main(args)
     print('Program finished!')
-
     import shutil
     if os.path.exists(new_save_path):
         shutil.rmtree(new_save_path)  # Deletes existing folder

@@ -20,12 +20,8 @@ We represent ρ_t by particles, and iterate:
 
 This is a practical computational experiment setup; it is not a proof-level PDE solver.
 """
-<<<<<<< HEAD
 import os
 os.environ["JAX_PLATFORMS"] = "cpu"
-=======
-
->>>>>>> 87c6e2d5e0940a62ba829a3a411aa819bdfab16f
 import numpy as np
 import jax
 import jax.numpy as jnp
@@ -260,10 +256,14 @@ if __name__ == "__main__":
     jax.config.update("jax_enable_x64", True)  # optional for stability
     args = get_config()
     args = create_dir(args)
+    new_save_path = args.save_path + '__complete'
+    if os.path.exists(new_save_path):
+        print(f"Job already completed. Folder exists: {new_save_path}")
+        sys.exit(0)
+    
     print('Program started!')
     print(vars(args))
     main(args)
-
     print('Program finished!')
     new_save_path = args.save_path + '__complete'
     import shutil
