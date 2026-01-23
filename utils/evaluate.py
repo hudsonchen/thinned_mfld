@@ -88,7 +88,6 @@ def eval_vlm(args, sim, xT, data, init, x_ground_truth,
     kgd_values = jnp.zeros(xT.shape[0])
 
     for t, particles in enumerate(tqdm(xT)):
-        # Run trajectories once
         rng_key, _ = jax.random.split(rng_key)
         sampled_trajectories_all = jax.vmap(lambda p: lotka_volterra_ws(init, p, rng_key, 100))(particles)
         sampled_trajectories = sampled_trajectories_all.mean(axis=0)

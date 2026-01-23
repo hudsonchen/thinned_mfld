@@ -9,9 +9,9 @@ for name in os.listdir(ROOT_DIR):
     if not os.path.isdir(old_path):
         continue
 
-    # only rename if skip_swap_False is in the folder name
-    if "skip_swap_False" in name:
-        new_name = name.replace("skip_swap_False", "skip_swap_True")
+    # rename step_size_200 -> step_size_150
+    if "step_num_200" in name:
+        new_name = name.replace("step_num_200", "step_num_150")
         new_path = os.path.join(ROOT_DIR, new_name)
 
         if os.path.exists(new_path):
