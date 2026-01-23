@@ -2,7 +2,7 @@ for seed in {0..9}
 do
   for method in kt
   do
-    for g in 0
+    for g in 0 1 2
     do
       for particle_num in 16 64 256 1024
       do
