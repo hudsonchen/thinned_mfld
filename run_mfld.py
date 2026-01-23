@@ -217,9 +217,10 @@ def main(args):
     elif args.dataset in ['student_teacher']:
         eval_nn_regression(args, sim, X0, xT, data, loss, mmd_path, thin_original_mse_path, time_path)
     elif args.dataset == 'vlm':
-        eval_vlm(args, sim, xT, data, init, x_ground_truth, 
-                 lotka_volterra_ws, lotka_volterra_ms, 
-                 mmd_path, thin_original_mse_path, time_path)
+        # eval_vlm(args, sim, xT, data, init, x_ground_truth, 
+        #          lotka_volterra_ws, lotka_volterra_ms, 
+        #          mmd_path, thin_original_mse_path, time_path)
+        pass
     elif args.dataset == 'mmd_flow':
         eval_mmd_flow(args, sim, xT, None, mmd_path, thin_original_mse_path, time_path)
     else:
