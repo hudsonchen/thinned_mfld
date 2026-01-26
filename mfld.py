@@ -240,6 +240,9 @@ class MFLD_vlm(MFLDBase):
             thinned_x = self.thin_fn(x, key)
             N, d = x.shape
             B = jnp.sqrt(N).astype(int)
+            key, _ = random.split(key)
+            perm = jax.random.permutation(key, N)
+            x = x[perm]
             x_batch = x.reshape((B, B, d))  # (num_batches=B, batch_size=B, d)
             key, subkey = random.split(key)
             keys = random.split(subkey, B)
@@ -332,6 +335,9 @@ class MFLD_mmd_flow(MFLDBase):
             thinned_x = self.thin_fn(x, key)
             N, d = x.shape
             B = jnp.sqrt(N).astype(int)
+            key, _ = random.split(key)
+            perm = jax.random.permutation(key, N)
+            x = x[perm]
             x_batch = x.reshape((B, B, d))  # (num_batches=B, batch_size=B, d)
             key, subkey = random.split(key)
             keys = random.split(subkey, B)
