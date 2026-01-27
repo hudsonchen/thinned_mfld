@@ -1,13 +1,13 @@
-import random
-from re import sub
 from utils.configs import CFG
 from utils.problems import *
 from mfld import MFLD_nn, MFLD_vlm, MFLD_mmd_flow
 from utils.datasets import load_student_teacher, load_covertype
+import os
+os.environ["JAX_PLATFORM_NAME"] = "cpu"
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
 import jax.numpy as jnp
 import jax
 import time
-import os
 import argparse
 import pickle
 import time
@@ -21,7 +21,6 @@ from utils.evaluate import eval_nn_classification, eval_nn_regression, eval_vlm,
 # from jax import config
 # config.update("jax_disable_jit", True)
 jax.config.update("jax_enable_x64", True)
-jax.config.update("jax_platform_name", "cpu")
 import sys
 import pwd
 if pwd.getpwuid(os.getuid())[0] == 'zongchen':
@@ -217,15 +216,16 @@ def main(args):
     elif args.dataset in ['student_teacher']:
         eval_nn_regression(args, sim, X0, xT, data, loss, mmd_path, thin_original_mse_path, time_path)
     elif args.dataset == 'vlm':
-        eval_vlm(args, sim, xT, data, init, x_ground_truth, 
-                 lotka_volterra_ws, lotka_volterra_ms, 
-                 mmd_path, thin_original_mse_path, time_path)
-        # jnp.save(f'{args.save_path}/time_path.npy', time_path)
+        # eval_vlm(args, sim, xT, data, init, x_ground_truth, 
+        #          lotka_volterra_ws, lotka_volterra_ms, 
+        #          mmd_path, thin_original_mse_path, time_path)
+        pass
     elif args.dataset == 'mmd_flow':
         eval_mmd_flow(args, sim, xT, None, mmd_path, thin_original_mse_path, time_path)
     else:
         raise ValueError(f"Unknown dataset: {args.dataset}")
     
+    jnp.save(f'{args.save_path}/time_path.npy', time_path)
     return
 
 
