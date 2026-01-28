@@ -173,7 +173,6 @@ class MFLD_nn(MFLDBase):
 
     def simulate(self, x0: Optional[Array] = None) -> Array:
         key = random.PRNGKey(self.cfg.seed)
-        
         x = x0
         path = []
         mmd_path = []
@@ -181,13 +180,12 @@ class MFLD_nn(MFLDBase):
         time_path = []
         for t in tqdm(range(self.cfg.steps)):
             time_start = time.time()
-            for i, (z, y) in enumerate(zip(self.data["Z"], self.data["y"])):
-                key_, subkey = random.split(key)
-                (x, key) , thinned_x = self._step((x, (z, y), subkey), i)
+            key, subkey = random.split(key)
+            (Z, y) = self.problem.data_fn(rng_key=key)
+            (x, key) , thinned_x = self._step((x, (Z, y), subkey), t)
             time_elapsed = time.time() - time_start
 
             # Debug code compare MMD between x and thinned_x 
-            (Z, y) = (self.data["Z"][0], self.data["y"][0])
             mmd2 = compute_mmd2(x, thinned_x, bandwidth=self.cfg.bandwidth)
 
             # thinned_output = self._vm_q1(Z, thinned_x).mean(1)

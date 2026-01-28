@@ -15,6 +15,7 @@ class Problem_nn:
     q1: Callable[[Array], Array] = None
     q2: Callable[[Array, Array], Array] = None
     data: Optional[Array] = None
+    data_fn: Optional[Callable[[Array], Array]] = None
 
 
 @dataclass(frozen=True)

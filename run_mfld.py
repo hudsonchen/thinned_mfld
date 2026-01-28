@@ -1,16 +1,17 @@
 from utils.configs import CFG
 from utils.problems import *
 from mfld import MFLD_nn, MFLD_vlm, MFLD_mmd_flow
-from utils.datasets import load_student_teacher, load_covertype
+from utils.datasets import get_data, load_student_teacher
 import os
-os.environ["JAX_PLATFORM_NAME"] = "cpu"
-os.environ["CUDA_VISIBLE_DEVICES"] = ""
+# os.environ["JAX_PLATFORM_NAME"] = "cpu"
+# os.environ["CUDA_VISIBLE_DEVICES"] = ""
 import jax.numpy as jnp
 import jax
 import time
 import argparse
 import pickle
 import time
+from functools import partial
 from utils.lotka_volterra import lotka_volterra_ws, lotka_volterra_ms
 from utils.evaluate import eval_nn_classification, eval_nn_regression, eval_vlm, eval_mmd_flow
 
@@ -87,7 +88,8 @@ def main(args):
 
         data = load_student_teacher(batch_size=64, total_size=1024 * 32, q1_nn_apply=q1_nn, d=args.d, M=args.teacher_num,
                                     standardize_Z=True, standardize_y=False)
-        
+        data_fn = partial(get_data, q1_nn_apply=q1_nn, batch_size=64, d=args.d, M=args.teacher_num, data=data)
+        data_fn = jax.jit(data_fn)
         @jax.jit
         def loss(Z, y, params):
             """Compute MSE for a given parameter vector `params`."""
@@ -107,46 +109,9 @@ def main(args):
             R1_prime=R1_prime,
             q1=q1_nn,
             q2=None,
-            data=data
+            data=data,
+            data_fn=data_fn
         )
-
-    elif args.dataset == 'covertype':
-
-        def R1_prime(hat_y, y):
-            return - y / (hat_y + 1e-8)
-
-        def q1_nn(z, x):
-            d_hidden = z.shape[-1]
-            W1, b1, W2 = x[:d_hidden], x[d_hidden+1], x[d_hidden+1:]
-            h = jnp.tanh(z @ W1 + b1) 
-            logits = jnp.dot(W2, h)
-            return jax.nn.softmax(logits)
-
-        data = load_covertype(batch_size=256, standardize_X=True, one_hot_y=True)
-
-        @jax.jit
-        def loss(Z, y, params):
-            """Compute Cross-Entropy Loss for a given parameter vector `params`."""
-            preds_all = jax.vmap(                       # over particles
-                    jax.vmap(q1_nn, in_axes=(0, None)),     # over batch
-                    in_axes=(None, 0)                          # Z[p], params[p]
-                )(Z, params)
-            preds = preds_all.mean(axis=0)  # (batch_size, num_classes)
-            loss_val = -jnp.mean(jnp.sum(y * jnp.log(preds + 1e-8), axis=1))
-            acc_val = jnp.mean(jnp.argmax(preds, axis=1) == jnp.argmax(y, axis=1))
-            return loss_val, acc_val
-
-        output_d = data["y"].shape[-1] if len(data["y"].shape) > 2 else 1
-        input_d = data["Z"].shape[-1]
-        problem_nn = Problem_nn(
-            particle_d=data["Z"].shape[-1] + 1 + output_d,  # NN params dimension
-            input_d=input_d,
-            output_d=output_d,
-            R1_prime=R1_prime,
-            q1=q1_nn,
-            data=data
-        )
-
     elif args.dataset == 'vlm':
         from utils.kernel import gaussian_kernel
         kernel = gaussian_kernel(sigma=1.0)
