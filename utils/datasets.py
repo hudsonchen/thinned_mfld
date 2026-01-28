@@ -6,13 +6,13 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 
-def get_data(q1_nn_apply, batch_size, d, M, data, rng_key):
-    key_z, key_perm, key_noise, key_params = jax.random.split(rng_key, 4)
-
+def get_data(q1_nn_apply,d, M, data, shape, rng_key):
+    key_z, key_noise = jax.random.split(rng_key, 2)
+    key_params = jax.random.PRNGKey(42)
     # Sample inputs
     d_input = d
-    Z = jax.random.normal(key_z, shape=(batch_size, d_input), dtype=jnp.float32)
-
+    Z = jax.random.normal(key_z, shape=(*shape, d_input), dtype=jnp.float32)
+    Z_all = Z.reshape((-1, d_input))
     teacher_params = sample_teacher_params_multimodal_per_neuron(
         key_params,
         d,
@@ -22,9 +22,10 @@ def get_data(q1_nn_apply, batch_size, d, M, data, rng_key):
         within_mode_std=0.2,
         base_scale=0.8,
     )
-    y_clean = jax.vmap(jax.vmap(q1_nn_apply, in_axes=(0, None)),
+    y_clean_all = jax.vmap(jax.vmap(q1_nn_apply, in_axes=(0, None)),
                     in_axes=(None, 0)
-                )(Z, teacher_params).mean(0)
+                )(Z_all, teacher_params).mean(0)
+    y_clean = y_clean_all.reshape((*shape, -1))
     eps = 0.3 * jax.random.normal(key_noise, shape=y_clean.shape, dtype=jnp.float32)
     y = y_clean + eps
 
@@ -80,7 +81,7 @@ def load_student_teacher(batch_size, total_size, q1_nn_apply, d, M, standardize_
     y = y_clean + eps
 
     # Train/test split (numpy-style, deterministic)
-    N_te = int(np.round(0.2 * total_size))
+    N_te = int(np.round(0.1 * total_size))
     N_tr = total_size - N_te
     perm = jax.random.permutation(key_perm, total_size)
     Z = Z[perm]

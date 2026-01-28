@@ -5,29 +5,22 @@ import matplotlib.pyplot as plt
 from utils.kernel import *
 
 def eval_nn_regression(args, sim, X0, xT, data, loss, mmd_path, thin_original_mse_path, time_path):
-    train_losses = []
     test_losses = []
     for p in tqdm(jnp.vstack([X0[None, :], xT])):
         tr_, te_ = 0.0, 0.0
-        for z_tr, y_tr in zip(data["Z"], data["y"]):
-            tr_ += loss(z_tr, y_tr, p)
         for z_te, y_te in zip(data["Z_test"], data["y_test"]):
             te_ += loss(z_te, y_te, p)
-        train_losses.append(float(tr_) / data["num_batches_tr"])
         test_losses.append(float(te_) / data["num_batches_te"])
     
-    train_losses = jnp.array(train_losses)
     test_losses = jnp.array(test_losses)
 
     jnp.save(f'{args.save_path}/trajectory.npy', jnp.vstack([X0[None, :], xT]))
     jnp.save(f'{args.save_path}/mmd_path.npy', mmd_path)
     jnp.save(f'{args.save_path}/thin_original_mse_path.npy', thin_original_mse_path)
-    jnp.save(f'{args.save_path}/train_losses.npy', train_losses)
     jnp.save(f'{args.save_path}/test_losses.npy', test_losses)
     jnp.save(f'{args.save_path}/time_path.npy', time_path)
 
     axs = plt.subplots(1, 1, figsize=(8, 6))
-    plt.plot(train_losses, label='Train Loss')
     plt.plot(test_losses, label='Test Loss')
     plt.xlabel('Training Step')
     plt.ylabel('Loss')

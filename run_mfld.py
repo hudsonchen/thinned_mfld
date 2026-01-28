@@ -86,10 +86,11 @@ def main(args):
             y = jnp.dot(W2, h)
             return jnp.clip(y, -1e3, 1e3)
 
-        data = load_student_teacher(batch_size=64, total_size=1024 * 32, q1_nn_apply=q1_nn, d=args.d, M=args.teacher_num,
+        bs = 32
+        data = load_student_teacher(batch_size=bs, total_size=4096 * bs, q1_nn_apply=q1_nn, d=args.d, M=args.teacher_num,
                                     standardize_Z=True, standardize_y=False)
-        data_fn = partial(get_data, q1_nn_apply=q1_nn, batch_size=64, d=args.d, M=args.teacher_num, data=data)
-        data_fn = jax.jit(data_fn)
+        data_fn = partial(get_data, q1_nn_apply=q1_nn, d=args.d, M=args.teacher_num, data=data)
+
         @jax.jit
         def loss(Z, y, params):
             """Compute MSE for a given parameter vector `params`."""
@@ -200,9 +201,9 @@ if __name__ == "__main__":
     args = create_dir(args)
     new_save_path = args.save_path + '__complete'
     # Early exit if job already completed
-    if os.path.exists(new_save_path):
-        print(f"Job already completed. Folder exists: {new_save_path}")
-        sys.exit(0)
+    # if os.path.exists(new_save_path):
+    #     print(f"Job already completed. Folder exists: {new_save_path}")
+    #     sys.exit(0)
 
     print('Program started!')
     print(vars(args))

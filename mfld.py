@@ -84,7 +84,8 @@ class MFLDBase(ABC):
                     seed = jax.random.randint(rng_key, (), 0, 2**31 - 1).item()
                     x_cpu = np.array(np.asarray(x))
                     coresets = compress.compresspp_kt(x_cpu, kernel_type=self.kernel_type.encode("utf-8"), k_params=k_params, seed=seed, g=self.cfg.g)
-                    return jax.device_put(x_cpu[coresets, :])
+                    # return jax.device_put(x_cpu[coresets, :])
+                    return coresets
             elif cfg.kt_function == 'compress_kt':
                 print(f"Using compress_kt with skip_swap={self.cfg.skip_swap}")
                 def thin_fn(x, rng_key):
@@ -92,26 +93,32 @@ class MFLDBase(ABC):
                     seed = jax.random.randint(rng_key, (), 0, 2**31 - 1).item()
                     x_cpu = np.array(np.asarray(x))
                     coresets = compress.compress_kt(x_cpu, kernel_type=self.kernel_type.encode("utf-8"), k_params=k_params, seed=seed, g=self.cfg.g, skip_swap=self.cfg.skip_swap)
-                    return jax.device_put(x_cpu[coresets, :])
+                    # return jax.device_put(x_cpu[coresets, :])
+                    return coresets
             self.thin_fn = thin_fn
         elif thinning == 'random':
             def thin_fn(x, rng_key):
                 rng_key, _ = jax.random.split(rng_key)
                 N = x.shape[0]
                 indices = jax.random.choice(rng_key, N, (int(jnp.sqrt(N)),), replace=False)
-                return x[indices, :]
+                return indices
             self.thin_fn = thin_fn
         elif thinning == 'false':
-            self.thin_fn = lambda x, rng_key : x
+            # self.thin_fn = lambda x, rng_key : x
+            self.thin_fn = lambda x, rng_key : jnp.arange(x.shape[0])
         elif thinning == 'rbm':
-            self.thin_fn = lambda x, rng_key : x # This will not be used, but set as identity to avoid errors
+            self.thin_fn = lambda x, rng_key : jnp.arange(x.shape[0]) # This will not be used, but set as identity to avoid errors
         else:
             raise ValueError(f"Unknown thinning method: {thinning}")
 
         if self.problem.q1 is not None:
-            self._vm_q1 = vmap(vmap(self.problem.q1, in_axes=(None, 0)), in_axes=(0, None))
-            self._vm_grad_q1 = vmap(vmap(lambda z, x: jax.jacrev(self.problem.q1, argnums=1)(z, x), in_axes=(None, 0)), in_axes=(0, None))
-        
+            # Old student teacher
+            # self._vm_q1 = vmap(vmap(self.problem.q1, in_axes=(None, 0)), in_axes=(0, None))
+            # self._vm_grad_q1 = vmap(vmap(lambda z, x: jax.jacrev(self.problem.q1, argnums=1)(z, x), in_axes=(None, 0)), in_axes=(0, None))
+            # New student teacher
+            self._vm_q1 = vmap(vmap(self.problem.q1, in_axes=(0, 0)), in_axes=(0, None))
+            self._vm_grad_q1 = vmap(vmap(lambda z, x: jax.jacrev(self.problem.q1, argnums=1)(z, x), in_axes=(0, 0)), in_axes=(0, None))
+
         if self.problem.q2 is not None:
             self._vm_q2 = jax.vmap(
                 jax.vmap(self.problem.q2, in_axes=(None, 0, 0)),  # inner: x[j], key[i,j]
@@ -130,10 +137,10 @@ class MFLD_nn(MFLDBase):
         super().__init__(problem, thinning, save_freq, cfg, args)
 
     @partial(jit, static_argnums=0)
-    def vector_field(self, x: Array, thinned_x: Array, data: Array) -> Array:
-        (Z, y) = data
-        s = self._vm_q1(Z, thinned_x).mean(1)   # (n, d_out)
-        coeff = self.problem.R1_prime(s, y)    # (n, d_out)
+    def vector_field(self, x: Array, thinned_x: Array, thinned_idx: Array, data: Array) -> Array:
+        (Z, y) = data # Z : (n, N, d), y: (n, N, d_out)
+        s = self._vm_q1(Z[:, thinned_idx, :], thinned_x)   # (n, N, d_out)
+        coeff = self.problem.R1_prime(s, y[:, thinned_idx, :]).mean(1)    # (n, d_out)
         term1_vector = self._vm_grad_q1(Z, x)       # (n, N, d_out, d)
         term1_mean = jnp.einsum("na,ncad->cd", coeff, term1_vector) / coeff.shape[0]
         reg = self.cfg.zeta * x
@@ -144,15 +151,17 @@ class MFLD_nn(MFLDBase):
         x, batch, key = carry
         if self.args.thinning in ['kt', 'random', 'false']:
             key, _ = random.split(key)
-            thinned_x = self.thin_fn(x, key)
-            v = self.vector_field(x, thinned_x, batch)
+            thinned_idx = self.thin_fn(x, key)
+            thinned_x = x[thinned_idx, :]
+            v = self.vector_field(x, thinned_x, thinned_idx, batch)
             noise_scale = jnp.sqrt(2.0 * self.cfg.sigma * self.cfg.step_size)
             key, _ = random.split(key)
             noise = noise_scale * random.normal(key, shape=x.shape)
             x_next = x - self.cfg.step_size * v + noise
         elif self.args.thinning == 'rbm':
             # Random batch method 
-            thinned_x = self.thin_fn(x, key)
+            thinned_idx = self.thin_fn(x, key)
+            thinned_x = x[thinned_idx, :]
             N, d = x.shape
             B = jnp.sqrt(N).astype(int)
             key, _ = random.split(key)
@@ -162,7 +171,9 @@ class MFLD_nn(MFLDBase):
             key, subkey = random.split(key)
 
             def vf_one_batch(xb):
-                return self.vector_field(xb, xb, batch)  # -> (B, d)
+                dummy_idx = jnp.arange(xb.shape[0])
+                return self.vector_field(xb, xb, dummy_idx, 
+                                         (batch[0][:, dummy_idx, :], batch[1][:, dummy_idx, :]))  # -> (B, d)
 
             v_batch = jax.vmap(vf_one_batch, in_axes=(0))(x_batch)  # (B, B, d)
             v = v_batch.reshape((N, d))
@@ -181,7 +192,7 @@ class MFLD_nn(MFLDBase):
         for t in tqdm(range(self.cfg.steps)):
             time_start = time.time()
             key, subkey = random.split(key)
-            (Z, y) = self.problem.data_fn(rng_key=key)
+            (Z, y) = self.problem.data_fn(shape=(32, x.shape[0]), rng_key=key)
             (x, key) , thinned_x = self._step((x, (Z, y), subkey), t)
             time_elapsed = time.time() - time_start
 
