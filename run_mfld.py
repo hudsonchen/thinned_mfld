@@ -82,7 +82,8 @@ def main(args):
             d_hidden = z.shape[-1]
             W1, b1, W2 = x[:d_hidden], x[d_hidden+1], x[d_hidden+1:]
             h = jax.nn.relu(z @ W1 + b1)
-            return jnp.dot(W2, h)
+            y = jnp.dot(W2, h)
+            return jnp.clip(y, -1e3, 1e3)
 
         data = load_student_teacher(batch_size=64, total_size=1024 * 32, q1_nn_apply=q1_nn, d=args.d, M=args.teacher_num,
                                     standardize_Z=True, standardize_y=False)
@@ -216,10 +217,9 @@ def main(args):
     elif args.dataset in ['student_teacher']:
         eval_nn_regression(args, sim, X0, xT, data, loss, mmd_path, thin_original_mse_path, time_path)
     elif args.dataset == 'vlm':
-        # eval_vlm(args, sim, xT, data, init, x_ground_truth, 
-        #          lotka_volterra_ws, lotka_volterra_ms, 
-        #          mmd_path, thin_original_mse_path, time_path)
-        pass
+        eval_vlm(args, sim, xT, data, init, x_ground_truth, 
+                 lotka_volterra_ws, lotka_volterra_ms, 
+                 mmd_path, thin_original_mse_path, time_path)
     elif args.dataset == 'mmd_flow':
         eval_mmd_flow(args, sim, xT, None, mmd_path, thin_original_mse_path, time_path)
     else:

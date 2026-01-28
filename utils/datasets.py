@@ -169,6 +169,31 @@ def load_covertype(batch_size, test_size=0.2, seed=42,
     return out
 
 
+def make_teacher_fn(q1_nn_apply):
+    """
+    Returns a function teacher_fn(z) that maps
+    z: (..., d) -> y: (..., 1)
+    """
+    teacher_params = sample_teacher_params_multimodal_per_neuron(
+        key_params,
+        d_input,
+        M,
+        num_modes=(M // 10)+1,
+        mode_separation=2.0,
+        within_mode_std=0.2,
+        base_scale=0.8,
+    )
+    def teacher_fn(z):
+        # z can be shape (d,) or (N, d)
+        contribs = jax.vmap(
+            lambda p: q1_nn_apply(z, p),
+            in_axes=0
+        )(teacher_params)
+        return contribs.mean(axis=0, keepdims=True)
+
+    return teacher_fn
+
+
 def load_student_teacher(batch_size, total_size, q1_nn_apply, d, M, standardize_Z=True, standardize_y=False):
     """
     Synthetic student-teacher regression dataset, batched like your load_boston().
